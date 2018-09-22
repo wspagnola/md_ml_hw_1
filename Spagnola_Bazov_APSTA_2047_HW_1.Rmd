@@ -190,7 +190,7 @@ summary(trips_hw_1$passenger_count)
 SOURCE(http://www.nyc.gov/html/tlc/html/faq/faq_pass.shtml)
 
 
-```{r}
+```{r Cleaning Fares Data}
 fares_hw_1 <- read_csv("fares_hw_1.csv")
 
 #Examining fare variables to see amounts that are unreasonable
