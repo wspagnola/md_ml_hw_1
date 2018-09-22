@@ -10,8 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 
-fares <- read_csv("trip_fare_8.csv")
-trips <- read_csv("trip_data_8.csv")
+#fares <- read_csv("trip_fare_8.csv")
+#trips <- read_csv("trip_data_8.csv")
 
 ```
 
@@ -89,7 +89,7 @@ trips_hw_1 <- trips_hw_1 %>%
               filter(avg_speed >= 10)
 
 
-#Check day 
+#Check day  
 trips_hw_1 %>%
   group_by(hack_license) %>%
   summarize(earliest_start=min(pickup_datetime)) %>%
@@ -101,10 +101,46 @@ trips_hw_1 %>%
 
 
 ```{r}
-
 fares_hw_1 <- read_csv("fares_hw_1.csv")
 
+#Examining fare variables to see amounts that are unreasonable
 summary(fares_hw_1)
 
+#filter fare amounts less than $2.50 and unreasonably high fares. 
+fares_hw_1<- fares_hw_1 %>%
+  filter(fare_amount>2.5 & fare_amount<=200)
 
+#Reexamining fare amounts. Looks Ok. 
+summary(fares_hw_1$fare_amount)
+
+#Boxplot to check surcharge distribution
+boxplot(fares_hw_1$surcharge)
+
+#filter out surcharges that are negative and too high
+fares_hw_1<- fares_hw_1 %>%
+   filter(surcharge>=0 & surcharge<367.46)
+
+#Filter out 0s for MTA Tax
+fares_hw_1<-fares_hw_1 %>%
+  filter(mta_tax>0)
+
+#Filter out tips greater than $100 and by tip amounts and imputed tip that differ by more than $1 
+fares_hw_1<-fares_hw_1 %>%
+  filter(tip_amount<100) %>% 
+  mutate(imputed_tip=total_amount-(fare_amount+surcharge+mta_tax+tip_amount+tolls_amount))
+fares_hw_1<-fares_hw_1 %>% 
+  mutate(tip_diff = abs(imputed_tip - tip_amount), tip_diff_amount=abs(tip_diff-tip_amount)) %>% 
+  filter(tip_diff_amount<1)
+
+#Drop irrelevant columns
+fares_hw_1<-fares_hw_1 %>%
+  select(-tip_diff, -tip_diff_amount, -imputed_tip)
+
+
+#Cleaning tolls by getting rid of amounts that are too high
+fares_hw_1<- fares_hw_1%>%
+  filter(tolls_amount<60)
+
+#See how everything looks
+summary(fares_hw_1)
 ```
