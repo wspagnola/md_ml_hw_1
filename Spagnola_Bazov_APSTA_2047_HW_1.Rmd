@@ -10,17 +10,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 
-<<<<<<< HEAD
-#fares <- read_csv("trip_fare_8.csv")
-#trips <- read_csv("trip_data_8.csv")
 
-=======
 
 '
 fares <- read_csv("trip_fare_8.csv")
 trips <- read_csv("trip_data_8.csv")
 '
->>>>>>> 7a8ad2a3fd84030e6ff48c96e3fa4b1f4889daf3
+
 ```
 
 ```{r}
@@ -97,9 +93,7 @@ trips_hw_1 <- trips_hw_1 %>%
               filter(avg_speed >= 10)
 
 
-<<<<<<< HEAD
-#Check day  
-=======
+
 
 ```
 
@@ -139,7 +133,6 @@ trips_hw_1 %>%
   filter(workday_in_seconds < as.duration(3600) )       
 
 #Create Boxplot of Distribution of Hack licenses
->>>>>>> 7a8ad2a3fd84030e6ff48c96e3fa4b1f4889daf3
 trips_hw_1 %>%
   group_by(hack_license) %>%
   summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
@@ -236,9 +229,20 @@ summary(fares_hw_1)
 ```
 
 
+##Merge Trips and Fares into One Dataframe called Taxi Data
+```{r}
+
+taxi_data <- inner_join(x = trips_hw_1, y = fares_hw_1) 
+taxi_data <- distinct(taxi_data)
+
+```
+
+
+
+
 ## Summary Statistics for Each Taxi Cab
 ```{r}
-trips_hw_1 %>% 
+taxi_data  %>% 
     group_by(medallion) %>%
     summarize(total_trips = n(),
               total_passengers  = sum(passenger_count),
@@ -252,7 +256,7 @@ trips_hw_1 %>%
 
 ##Part F
 ```{r}
-trips_hw_1 %>% 
+taxi_data  %>% 
     mutate(hour = hour(pickup_datetime)) %>%
     group_by(hack_license, hour) %>%
     summarize(total_passengers_picked_up = sum(passenger_count),
