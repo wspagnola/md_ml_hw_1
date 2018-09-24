@@ -247,9 +247,10 @@ taxi_data  %>%
     summarize(total_trips = n(),
               total_passengers  = sum(passenger_count),
               total_time_with_passengers = sum(trip_time_in_hrs),
-              total_distance = sum(trip_distance))
+              total_distance = sum(trip_distance),
+              total_earnings=sum(total_amount))
 
-#NOTE! : Add Earnings once we Merge with fares
+#NOTE! : Add Earnings once we Merge with fares. Resolved.-Emanuel  
     
 ```
 
@@ -260,20 +261,22 @@ taxi_data  %>%
     mutate(hour = hour(pickup_datetime)) %>%
     group_by(hack_license, hour) %>%
     summarize(total_passengers_picked_up = sum(passenger_count),
-              trips_started = n() )
+              trips_started = n())
+  
     
  
-##NOTE!: Think about trips_started.  I think what I did works.
+##NOTE!: Think about trips_started.  I think what I did works. 
 ```
 
 
 
-##Part F
+##Part G
 ```{r}
-trips_hw_1 %>% 
+taxi_data %>% 
     mutate(hour = hour(pickup_datetime)) %>%
     group_by(hack_license, hour) %>%
-    summarize(total_time_with_passengers = sum(trip_time_in_mins))
+    summarize(total_time_with_passengers = sum(trip_time_in_mins),
+              miles_with_passengers=sum(trip_distance))
 
 ```
 
