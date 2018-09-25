@@ -235,7 +235,7 @@ taxi_data <- full_join(x = trips_hw_1, y = fares_hw_1)
 (nrow(taxi_data))
 taxi_data <- distinct(taxi_data) #Remove Duplicate Rows
 (nrow(taxi_data))
-taxi_data<- taxi_data %>% select(-store_and_fwd_flag, -vendor_id, -pickup_longitude, -pickup_longitude, -rate_code, -dropoff_latitude, -dropoff_longitude, -payment_type) #Remove unneeded columns 
+taxi_data<- taxi_data %>% select(-store_and_fwd_flag, -vendor_id, -pickup_latitude, -pickup_longitude, -rate_code, -dropoff_latitude, -dropoff_longitude, -payment_type) #Remove unneeded columns 
 taxi_data<- na.omit(taxi_data)  #Remove all cases with missing data. 
 (nrow(taxi_data))
 ```
@@ -327,9 +327,15 @@ dividing by passegeners by trips_started to get an average rate using the table 
 
 
 
-
-
-
 ```
 
+
+
+##Part H: Plots
+```{r Plots}
+#Let's see if faster drivers are tipped better
+
+ggplot(taxi_data, aes(avg_speed, tip_amount))+
+  geom_point()
+```
 
