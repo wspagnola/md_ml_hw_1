@@ -238,6 +238,16 @@ taxi_data <- distinct(taxi_data) #Remove Duplicate Rows
 taxi_data<- taxi_data %>% select(-store_and_fwd_flag, -vendor_id, -pickup_latitude, -pickup_longitude, -rate_code, -dropoff_latitude, -dropoff_longitude, -payment_type) #Remove unneeded columns 
 taxi_data<- na.omit(taxi_data)  #Remove all cases with missing data. 
 (nrow(taxi_data))
+
+#Remove any Duplicate Row
+taxi_data <- distinct(taxi_data, medallion, hack_license, dropoff_datetime,
+ .keep_all=T)
+(nrow(taxi_data))
+
+#Remove any Duplicate Row
+taxi_data <- distinct(taxi_data, medallion, hack_license, pickup_datetime,
+ .keep_all=T)
+(nrow(taxi_data))
 ```
 
 
@@ -252,7 +262,7 @@ taxi_data  %>%
               total_time_with_passengers = sum(trip_time_in_hrs),
               total_distance = sum(trip_distance),
               total_earnings=sum(total_amount))
-#NOTE! : Add Earnings once we Merge with fares
+
     
 ```
 
@@ -306,14 +316,87 @@ dividing by passegeners by trips_started to get an average rate using the table 
 ##Part G
 ```{r}
 
-'5 cases for each row 
-     hour_interval > hour(pickup_time) & hour_interval = hour(dropoff_time) 
-     hour_interval == hour(pickup_time) &   hour_interval == hour(dropoff_time) 
-     hour_interval == hour(pickup_time) &   hour_interval < hour(dropoff_time) 
-    hour_interval < hour(pickup_time) &   hour_interval > hour(dropoff_time) 
-     ELSE 0 
-'
+#Create List of Column Names for Summary Tables
+summary_col_names <- c("hack_license", "hour", "total_time_with_passengers", "miles_with_passengers", "earnings")
 
+#Create total_earning and avg_earning columns
+names(taxi_data)
+taxi_data <- taxi_data %>%
+              mutate(total_earnings = fare_amount + tip_amount,
+                     avg_earnings = total_earnings / as.numeric(trip_duration, unit = "hours"))
+
+#Case 1: Group by Drop Off Hour: Pickup < Dropoff
+case1 <- taxi_data %>%
+        mutate(hour_drop = hour(dropoff_datetime),
+             hour_pick = hour(pickup_datetime)) %>%
+      filter(hour_drop - hour_pick == 1 ) %>%
+            mutate(time_after = as.duration(dropoff_datetime - floor_date(dropoff_datetime, unit = "hours")),
+                                miles_after = as.numeric(time_after, "hours")*avg_speed,
+                    earnings_after = as.numeric(time_after, unit = "hours")* avg_earnings)%>%
+            group_by(hack_license, hour_drop) %>%
+            summarize(total_time_with_passengers = as.duration(sum(time_after)),
+                      miles_with_passengers = sum( miles_after),
+                      earnings = sum(earnings_after))
+colnames(case1) <- summary_col_names
+
+
+#Case 2: Group_by Drop off or Pickup : Pickup == Dropoff
+case2 <-taxi_data %>%
+        mutate(hour_drop = hour(dropoff_datetime),
+             hour_pick = hour(pickup_datetime)) %>%
+      filter(hour_drop - hour_pick == 0 ) %>%
+            mutate(trip_duration = as.duration(dropoff_datetime - pickup_datetime),
+                   earnings = total_earnings) %>%
+            group_by(hack_license, hour_drop) %>%
+            summarize(total_time_with_passengers = as.duration(sum(trip_duration)),
+                      miles_with_passengers = sum(trip_distance),
+                      earnings = sum(earnings))
+colnames(case2) <- summary_col_names
+
+
+#Case 3: Group by Pick UP Hour: Pickup < Dropoff
+case3 <- taxi_data  %>%
+      mutate(hour_drop = hour(dropoff_datetime),
+             hour_pick = hour(pickup_datetime)) %>%
+      filter(hour_drop - hour_pick == 1 ) %>%
+      mutate(time_before = as.duration(
+                              ceiling_date(pickup_datetime, unit = "hours") - pickup_datetime),
+            miles_before = as.numeric(time_before, unit = "hours")  * avg_speed,
+            earnings = as.numeric(time_before, unit = "hours") * avg_earnings) %>%
+      group_by(hack_license, hour_pick) %>%
+            summarize(total_time_with_passengers = as.duration(sum(time_before)),
+                      miles_with_passengers = sum(miles_before),
+                      earnings = sum(earnings))
+colnames(case3) <- summary_col_names
+
+#Case 4: Cross Over Full Hour
+#No Trip Crossed over more than 4 hour intervals
+case4 <-taxi_data %>%
+      mutate(hour_drop = hour(dropoff_datetime),
+             hour_pick = hour(pickup_datetime)) %>%
+      filter(abs(hour_drop - hour_pick)  > 1 ) %>%
+      mutate(full_hour= case_when(dropoff_datetime >= ymd("2013-08-16") ~ 23,
+                                  dropoff_datetime < ymd("2013-08-16") ~ hour_drop - 1)) %>%
+      mutate(total_time_with_passengers = 60,
+             miles_with_passengers = avg_speed,
+             earnings = avg_earnings) %>%
+      select(hack_license, full_hour, total_time_with_passengers, miles_with_passengers, earnings )
+ colnames(case4) <- summary_col_names 
+ 
+ #Case 5: Trip lasts into next day
+ case5 <- taxi_data %>%
+      mutate(hour_drop = hour(dropoff_datetime),
+             hour_pick = hour(pickup_datetime)) %>%
+      filter(hour_drop - hour_pick  < 0 ) %>%
+      mutate(total_time_with_passengers = as.duration(
+                                ceiling_date(pickup_datetime, unit ="hours") -pickup_datetime),
+             miles_with_passengers = as.numeric(total_time_with_passengers, "hours")  * avg_speed,
+             earnings = as.numeric(total_time_with_passengers, unit = "hours")*avg_earnings) %>%
+      group_by(hack_license, hour_pick) %>%
+      summarize(total_time_with_passengers = as.duration(sum(total_time_with_passengers)),
+                miles_with_passengers = sum(miles_with_passengers),
+                earnings = sum(earnings))
+colnames(case5) <- summary_col_names 
 
 
 
@@ -328,6 +411,47 @@ dividing by passegeners by trips_started to get an average rate using the table 
 
 
 ```
+
+
+
+
+##Combine Summary Data 
+```{r}
+
+#Bind Each Case Together into Dataframe and then convert back to Tibble
+complete_summary_tibble <- rbind(as.data.frame(case1), 
+                                 as.data.frame(case2), 
+                                 as.data.frame(case3), 
+                                 as.data.frame(case4),
+                                 as.data.frame(case5)) %>% 
+                               as.tibble
+
+
+#Group by License and Hour and Sum 3 statistics
+combined_summary_tibble <- complete_summary_tibble %>%
+            group_by(hack_license, hour) %>%
+            summarize(total_time_with_passengers = as.duration(sum( total_time_with_passengers)),
+                      miles_with_passengers = sum( miles_with_passengers),
+                      earnings = sum(earnings) ) %>%
+            arrange(hack_license)
+
+#Joined Above Tibble with tibble created by cross joining hours 0:23 and all the unique license numbers
+final_summary <- full_join(licence_crossed, combined_summary_tibble)
+
+#Replace NAs created by join with zeros.  These represent the hours that the taxi driver did not have any trips
+final_summary$total_time_with_passengers <- replace(final_summary$total_time_with_passengers,
+                                                    is.na(final_summary$total_time_with_passengers)==T, 0)
+final_summary$miles_with_passengers <- replace(final_summary$miles_with_passengers,
+                                                    is.na(final_summary$miles_with_passengers)==T, 0)
+final_summary$earnings <- replace(final_summary$earnings,
+                                                    is.na(final_summary$earnings==T), 0)
+
+
+#Check to Make Sure Rows in Final Summary = # of Drivers x 24
+nrow(final_summary) == length(unique(taxi_data$hack_license)) *24
+
+```
+
 
 
 
