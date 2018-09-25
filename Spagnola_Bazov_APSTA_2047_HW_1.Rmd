@@ -19,7 +19,7 @@ trips <- read_csv("trip_data_8.csv")
 
 ```
 
-```{r}
+```{r, include = FALSE}
 '
 trips_hw_1  <- trips %>% filter(pickup_datetime >= ymd_hms("2013-08-15 00:00:00") 
                  & pickup_datetime < ymd_hms("2013-08-16 00:00:00"))
@@ -231,10 +231,10 @@ summary(fares_hw_1)
 
 ##Merge Trips and Fares into One Dataframe called Taxi Data
 ```{r}
-
-taxi_data <- inner_join(x = trips_hw_1, y = fares_hw_1) 
-taxi_data <- distinct(taxi_data)
-
+taxi_data <- full_join(x = trips_hw_1, y = fares_hw_1) 
+(nrow(taxi_data))
+taxi_data <- distinct(taxi_data) #Remove Duplicate Rows
+(nrow(taxi_data))
 ```
 
 
@@ -256,27 +256,66 @@ taxi_data  %>%
 
 ##Part F
 ```{r}
-taxi_data  %>% 
-    mutate(hour = hour(pickup_datetime)) %>%
-    group_by(hack_license, hour) %>%
-    summarize(total_passengers_picked_up = sum(passenger_count),
-              trips_started = n() )
-    
- 
-##NOTE!: Think about trips_started.  I think what I did works.
+
+
+#Extract hours from "pickup_datetime" column and save in separate column as integer vector named "hour"
+taxi_data <- taxi_data %>% 
+    mutate(hour = hour(pickup_datetime))
+
+#Use Cross-join to create Data Frame with 24 hour intervals for each driver
+hour <- 0:23
+licence_crossed <- crossing(taxi_data$hack_license, hour) 
+licence_crossed$hour <- as.numeric(as.character(licence_crossed $hour))
+colnames(licence_crossed ) <- c("hack_license", "hour")
+
+
+# Create Summary Dataframe of Total Passenger Count grouped by driver and hour
+summary_total_passengers_picked_up <- taxi_data%>%
+    filter(!is.na(passenger_count)) %>%
+    group_by(hack_license, hour ) %>%
+     summarize(total_passengers_picked_up = sum(passenger_count))
+
+     
+
+
+# Get Summary of Trips Started Stared By Hour
+summary_trips_started <- taxi_data %>%
+    filter(!is.na(pickup_datetime)) %>%
+    group_by(hack_license, hour ) %>%
+     summarize(trips_started= n())
+
+
+#Join Summary Datasets together 
+part_f_summary <- full_join(licence_crossed , summary_total_passengers_picked_up) #Join cross data with 
+part_f_summary$total_passengers_picked_up <- replace(part_f_summary$total_passengers_picked_up, is.na(part_f_summary$total_passengers_picked_up), 0) 
+part_f_summary <- full_join(part_f_summary, summary_trips_started) 
+part_f_summary$trips_started <- replace(part_f_summary$trips_started, is.na(part_f_summary$trips_started), 0)
+part_f_summary
+
+
+'The summary dataframe below only includes information from trips where the hour of pickup was known.
+Also there were rows that included pickup times but not a passenger count.  Consequently,
+dividing by passegeners by trips_started to get an average rate using the table below would be misleading.'
+
 ```
 
 
-
-##Part F
+##Part G
 ```{r}
-trips_hw_1 %>% 
-    mutate(hour = hour(pickup_datetime)) %>%
-    group_by(hack_license, hour) %>%
-    summarize(total_time_with_passengers = sum(trip_time_in_mins))
+
+'5 cases for each row 
+     hour_interval > hour(pickup_time) & hour_interval = hour(dropoff_time) 
+     hour_interval == hour(pickup_time) &   hour_interval == hour(dropoff_time) 
+     hour_interval == hour(pickup_time) &   hour_interval < hour(dropoff_time) 
+    hour_interval < hour(pickup_time) &   hour_interval > hour(dropoff_time) 
+     ELSE 0 
+'
+
+'Not sure how to deal with NAs'
+ 
+
+
 
 ```
-
-
 
 
