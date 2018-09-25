@@ -229,26 +229,29 @@ summary(fares_hw_1)
 ```
 
 
-##Merge Trips and Fares into One Dataframe called Taxi Data
+## Part D. Merge Trips and Fares into One Dataframe called Taxi Data
 ```{r}
 taxi_data <- full_join(x = trips_hw_1, y = fares_hw_1) 
 (nrow(taxi_data))
 taxi_data <- distinct(taxi_data) #Remove Duplicate Rows
+(nrow(taxi_data))
+taxi_data<- taxi_data %>% select(-store_and_fwd_flag) #Remove column with missing data. 
+taxi_data<- na.omit(taxi_data)  #Remove all cases with missing data. 
 (nrow(taxi_data))
 ```
 
 
 
 
-## Summary Statistics for Each Taxi Cab
+## Part E. Summary Statistics for Each Taxi Cab
 ```{r}
 taxi_data  %>% 
     group_by(medallion) %>%
     summarize(total_trips = n(),
               total_passengers  = sum(passenger_count),
               total_time_with_passengers = sum(trip_time_in_hrs),
-              total_distance = sum(trip_distance))
-
+              total_distance = sum(trip_distance),
+              total_earnings=sum(total_amount))
 #NOTE! : Add Earnings once we Merge with fares
     
 ```
@@ -312,7 +315,19 @@ dividing by passegeners by trips_started to get an average rate using the table 
 '
 
 'Not sure how to deal with NAs'
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
