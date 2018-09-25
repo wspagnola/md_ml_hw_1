@@ -1,0 +1,321 @@
+---
+title: 'APSTA 2047: HW1'
+author: "William Spagnola & Emanuel Bazov"
+date: "9/18/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+
+
+
+'
+fares <- read_csv("trip_fare_8.csv")
+trips <- read_csv("trip_data_8.csv")
+'
+
+```
+
+```{r, include = FALSE}
+'
+trips_hw_1  <- trips %>% filter(pickup_datetime >= ymd_hms("2013-08-15 00:00:00") 
+                 & pickup_datetime < ymd_hms("2013-08-16 00:00:00"))
+
+fares_hw_1 <- fares %>% filter(pickup_datetime >= ymd_hms("2013-08-15 00:00:00") 
+                 & pickup_datetime < ymd_hms("2013-08-16 00:00:00"))
+
+
+trips_hw_1 %>% arrange(desc(pickup_datetime))
+trips_hw_1 %>% arrange(pickup_datetime)
+
+fares_hw_1 %>% arrange(desc(pickup_datetime))
+fares_hw_1 %>% arrange(pickup_datetime)
+
+
+write_csv(x = trips_hw_1, path = "trips_hw_1.csv")
+write_csv(x = fares_hw_1, path = "fares_hw_1.csv")
+'
+```
+
+
+#Clean Data
+```{r Clean}
+
+trips_hw_1 <- read_csv("trips_hw_1.csv")
+
+
+
+summary(trips_hw_1)
+
+
+#Look at Trip Time 
+trips_hw_1 %>%
+      arrange(trip_time_in_secs)
+
+#Filter Trips less than 60 seconds
+trips_hw_1 <- trips_hw_1 %>% filter(trip_time_in_secs > 60)
+
+#Generate column of trip time minutes
+trips_hw_1 <- trips_hw_1 %>%
+  mutate(trip_time_in_mins =  (trip_time_in_secs / 60)) 
+
+
+#Generate column of trip time Hours
+trips_hw_1 <- trips_hw_1 %>%
+  mutate(trip_time_in_hrs =  (trip_time_in_mins / 60)) 
+
+#Look at Max Trip Time in descending Order
+trips_hw_1 %>%
+      arrange(desc(trip_time_in_mins))
+trips_hw_1 %>%
+      arrange(desc(trip_time_in_hrs))
+
+#Filter Trip Time to be less than or equal to 3 hours 
+trips_hw_1 <- trips_hw_1 %>% 
+  filter(trip_time_in_hrs  <= 3)
+    
+#Generate column of average speed
+trips_hw_1 <- trips_hw_1 %>%
+  mutate(avg_speed = trip_distance / (trip_time_in_secs / 3600)) 
+
+#Examing Average Speed
+summary(trips_hw_1$avg_speed)
+
+#Filter Average Speed to be Less than or equal to 60
+trips_hw_1 <- trips_hw_1 %>%
+              filter(avg_speed <= 60)
+
+#Filter Average Speed to be greater than or to 10
+trips_hw_1 <- trips_hw_1 %>%
+              filter(avg_speed >= 10)
+
+
+
+
+```
+
+
+##Clean Data based on Workday Length
+```{r}
+#Calculate Total Numbwer of Drivers
+length(unique(trips_hw_1$hack_license))
+
+#Check Shortest Work Days
+trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  arrange(workday_in_seconds)
+
+
+#Check Longest Work Days
+trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  arrange(desc(workday_in_seconds))
+
+#Look at people who worked more than 16 hours
+trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  filter(workday_in_seconds > as.duration(16*3600) )
+  
+#Look at people who worked less than 1 hour
+trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  filter(workday_in_seconds < as.duration(3600) )       
+
+#Create Boxplot of Distribution of Hack licenses
+trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  ggplot(aes(x=1, y= as.numeric(workday_in_seconds)/3600))  + geom_boxplot()
+
+#Pull License Numbers of Cab Driver Who Worked at least one Hour   
+at_least_1hr <- trips_hw_1 %>%
+  group_by(hack_license) %>%
+  summarize(earliest_start= min(pickup_datetime), latest_finish = max(dropoff_datetime),
+            workday_in_seconds = as.duration(latest_finish- earliest_start) ) %>%
+  filter(workday_in_seconds >= as.duration(3600) ) %>%
+  pull(hack_license)
+
+
+#Calculate Rows Deleted
+nrow(trips_hw_1) -trips_hw_1 %>%
+    filter(hack_license %in% at_least_1hr ) %>%
+  nrow()
+
+#Remove Cab Drivers who Worked less than 1 hours
+trips_hw_1 <- trips_hw_1 %>%
+    filter(hack_license %in% at_least_1hr )
+```
+
+
+#Compare Drop Off, Pick Up Date, Trip time in Sec
+```{r}
+
+#Remove Rows Where Difference between Dropoff - Pickup and trip_time in secs is greater than 1  minute
+trips_hw_1 <- trips_hw_1 %>% 
+mutate(trip_duration = as.duration(dropoff_datetime - pickup_datetime) ) %>%
+    mutate(trip_diff = abs(trip_time_in_secs - as.numeric(trip_duration)) ) %>%
+    filter(trip_diff<= 60)
+
+```
+
+
+###Check Passenger Count
+```{r}
+summary(trips_hw_1$passenger_count)
+
+```
+**How many people can fit into a yellow taxicab?**
+
+*From Driver Rule 54-15(g) (in PDF): The maximum amount of passengers allowed in a yellow taxicab by law is four (4) in a four (4) passenger taxicab or five (5) passengers in a five (5) passenger taxicab, except that an additional passenger must be accepted if such passenger is under the age of seven (7) and is held on the lap of an adult passenger seated in the rear.*
+
+SOURCE(http://www.nyc.gov/html/tlc/html/faq/faq_pass.shtml)
+
+
+```{r Cleaning Fares Data}
+fares_hw_1 <- read_csv("fares_hw_1.csv")
+
+#Examining fare variables to see amounts that are unreasonable
+summary(fares_hw_1)
+
+#filter fare amounts less than $2.50 and unreasonably high fares. 
+fares_hw_1<- fares_hw_1 %>%
+  filter(fare_amount>2.5 & fare_amount<=200)
+
+#Reexamining fare amounts. Looks Ok. 
+summary(fares_hw_1$fare_amount)
+
+#Boxplot to check surcharge distribution
+boxplot(fares_hw_1$surcharge)
+
+#filter out surcharges that are negative and too high
+fares_hw_1<- fares_hw_1 %>%
+   filter(surcharge>=0 & surcharge<367.46)
+
+#Filter out 0s for MTA Tax
+fares_hw_1<-fares_hw_1 %>%
+  filter(mta_tax>0)
+
+#Filter out tips greater than $100 and by tip amounts and imputed tip that differ by more than $1 
+fares_hw_1<-fares_hw_1 %>%
+  filter(tip_amount<100) %>% 
+  mutate(imputed_tip=total_amount-(fare_amount+surcharge+mta_tax+tip_amount+tolls_amount))
+fares_hw_1<-fares_hw_1 %>% 
+  mutate(tip_diff = abs(imputed_tip - tip_amount), tip_diff_amount=abs(tip_diff-tip_amount)) %>% 
+  filter(tip_diff_amount<1)
+
+#Drop irrelevant columns
+fares_hw_1<-fares_hw_1 %>%
+  select(-tip_diff, -tip_diff_amount, -imputed_tip)
+
+
+#Cleaning tolls by getting rid of amounts that are too high
+fares_hw_1<- fares_hw_1%>%
+  filter(tolls_amount<60)
+
+#See how everything looks
+summary(fares_hw_1)
+```
+
+
+##Merge Trips and Fares into One Dataframe called Taxi Data
+```{r}
+taxi_data <- full_join(x = trips_hw_1, y = fares_hw_1) 
+(nrow(taxi_data))
+taxi_data <- distinct(taxi_data) #Remove Duplicate Rows
+(nrow(taxi_data))
+```
+
+
+
+
+## Summary Statistics for Each Taxi Cab
+```{r}
+taxi_data  %>% 
+    group_by(medallion) %>%
+    summarize(total_trips = n(),
+              total_passengers  = sum(passenger_count),
+              total_time_with_passengers = sum(trip_time_in_hrs),
+              total_distance = sum(trip_distance))
+
+#NOTE! : Add Earnings once we Merge with fares
+    
+```
+
+
+##Part F
+```{r}
+
+
+#Extract hours from "pickup_datetime" column and save in separate column as integer vector named "hour"
+taxi_data <- taxi_data %>% 
+    mutate(hour = hour(pickup_datetime))
+
+#Use Cross-join to create Data Frame with 24 hour intervals for each driver
+hour <- 0:23
+licence_crossed <- crossing(taxi_data$hack_license, hour) 
+licence_crossed$hour <- as.numeric(as.character(licence_crossed $hour))
+colnames(licence_crossed ) <- c("hack_license", "hour")
+
+
+# Create Summary Dataframe of Total Passenger Count grouped by driver and hour
+summary_total_passengers_picked_up <- taxi_data%>%
+    filter(!is.na(passenger_count)) %>%
+    group_by(hack_license, hour ) %>%
+     summarize(total_passengers_picked_up = sum(passenger_count))
+
+     
+
+
+# Get Summary of Trips Started Stared By Hour
+summary_trips_started <- taxi_data %>%
+    filter(!is.na(pickup_datetime)) %>%
+    group_by(hack_license, hour ) %>%
+     summarize(trips_started= n())
+
+
+#Join Summary Datasets together 
+part_f_summary <- full_join(licence_crossed , summary_total_passengers_picked_up) #Join cross data with 
+part_f_summary$total_passengers_picked_up <- replace(part_f_summary$total_passengers_picked_up, is.na(part_f_summary$total_passengers_picked_up), 0) 
+part_f_summary <- full_join(part_f_summary, summary_trips_started) 
+part_f_summary$trips_started <- replace(part_f_summary$trips_started, is.na(part_f_summary$trips_started), 0)
+part_f_summary
+
+
+'The summary dataframe below only includes information from trips where the hour of pickup was known.
+Also there were rows that included pickup times but not a passenger count.  Consequently,
+dividing by passegeners by trips_started to get an average rate using the table below would be misleading.'
+
+```
+
+
+##Part G
+```{r}
+
+'5 cases for each row 
+     hour_interval > hour(pickup_time) & hour_interval = hour(dropoff_time) 
+     hour_interval == hour(pickup_time) &   hour_interval == hour(dropoff_time) 
+     hour_interval == hour(pickup_time) &   hour_interval < hour(dropoff_time) 
+    hour_interval < hour(pickup_time) &   hour_interval > hour(dropoff_time) 
+     ELSE 0 
+'
+
+'Not sure how to deal with NAs'
+ 
+
+
+
+```
+
+
