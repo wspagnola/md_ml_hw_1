@@ -335,7 +335,7 @@ dividing by passegeners by trips_started to get an average rate using the table 
 ```{r Plots}
 #Let's see if faster drivers are tipped better
 
-ggplot(taxi_data, aes(avg_speed, tip_amount))+
+ggplot(taxi_data, aes(avg_speed, tip_amount, col=passenger_count))+
   geom_point()
 ```
 
