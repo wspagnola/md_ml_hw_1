@@ -399,17 +399,6 @@ case4 <-taxi_data %>%
 colnames(case5) <- summary_col_names 
 
 
-
-
-
-
-
-
-
-
-
-
-
 ```
 
 
@@ -450,6 +439,7 @@ final_summary$earnings <- replace(final_summary$earnings,
 #Check to Make Sure Rows in Final Summary = # of Drivers x 24
 nrow(final_summary) == length(unique(taxi_data$hack_license)) *24
 
+final_summary
 ```
 
 
@@ -457,9 +447,12 @@ nrow(final_summary) == length(unique(taxi_data$hack_license)) *24
 
 ##Part H: Plots
 ```{r Plots}
-#Let's see if faster drivers are tipped better
+#Let's see if there is a relationship between average speed and tip amount
 
-ggplot(taxi_data, aes(avg_speed, tip_amount, col=passenger_count))+
-  geom_point()
+ggplot(data=taxi_data)+
+  geom_smooth(mapping=aes(x=avg_speed, y=tip_amount))+
+  facet_wrap(~passenger_count, nrow=2)
+
+#
 ```
 
