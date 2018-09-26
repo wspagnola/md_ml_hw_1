@@ -453,6 +453,11 @@ ggplot(data=taxi_data)+
   geom_smooth(mapping=aes(x=avg_speed, y=tip_amount))+
   facet_wrap(~passenger_count, nrow=2)
 
-#
+#Do earnings increase with time spent with passengers
+ggplot(data=final_summary)+
+  geom_smooth(aes(as.numeric(total_time_with_passengers), earnings))
+  
+
 ```
 
+   We see that amount tipped increases with average speed, which suggests that faster drivers may be tipped better. However, we see this relationship decrease slightly as more passengers are added on, presumably this relationship is moderated for safety reasons say if the passengers were parents with a child they would prefer lower average speeds. This is true up until 6 passengers, where we see a sharp increase in the slope, indicating a preference for a faster trip over safety. The second plot shows a clear positive relationship between total time spend with passengers and earnings which makes sense since a component of fares is time spent in the car. 
