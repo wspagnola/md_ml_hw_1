@@ -461,3 +461,103 @@ ggplot(data=final_summary)+
 ```
 
    We see that amount tipped increases with average speed, which suggests that faster drivers may be tipped better. However, we see this relationship decrease slightly as more passengers are added on, presumably this relationship is moderated for safety reasons say if the passengers were parents with a child they would prefer lower average speeds. This is true up until 6 passengers, where we see a sharp increase in the slope, indicating a preference for a faster trip over safety. The second plot shows a clear positive relationship between total time spend with passengers and earnings which makes sense since a component of fares is time spent in the car. 
+
+
+##Compare Tip Amount, Average Mileage, Base on Shift (Tables)
+```{r Plots}
+
+
+
+taxi_data %>%
+      mutate(hour = hour(pickup_datetime)) %>%
+      group_by(as.factor(hour)) %>% 
+      summarize(avg_speed = mean(avg_speed))
+
+taxi_data %>%
+      mutate(hour = as.factor(hour(pickup_datetime))) %>%
+      ggplot() +
+      geom_boxplot(aes(x=hour, y=avg_speed))
+
+```
+
+From 8am to 8pm, the average taxi speed is around 15 mph.  At 9pm, the average speed begins increasing steadily until it reaches a little over 23 mph around 5am and then falls back to 15 between 5am to 8am.  We found this data suprising because we would expect taxis to drive more slowly in the morning from 7am to 10am and in the afternoon from 4pm to 7pm, but we thought traffic would speed up again around noon.  However, the boxplot shows that taxis travel at roughly the same speed throughout the day and only begin to travel faster after 9pm.  
+
+There also appears to be many outliers within each hour.  These outlier trips traveled at an average speed much higher than the average speed for each given hour.  We would expect that most of the trips that averaged above 30mph were trips that involved travel over highways given that the speed limit on city streets is 25mph. 
+
+
+##Passenger Counts and Likelihood of Tipping
+```{r}
+
+
+##Summary table: Proportion of Tips 
+taxi_data %>%
+     mutate(tipped= case_when(
+                          tip_amount == 0 ~ 0,
+                          tip_amount > 0 ~ 1)) %>%
+  group_by(passenger_count) %>%
+  summarize(prop_tipped = mean(tipped))
+
+#
+taxi_data %>%
+      mutate(tipped= as.factor(case_when(
+                          tip_amount == 0 ~ 0,
+                          tip_amount > 0 ~ 1)),
+             passenger_count = as.factor(passenger_count)) %>%
+          ggplot(aes(x=passenger_count)) +
+          geom_bar(aes(fill=tipped), position = "fill")
+
+
+    
+```
+
+We also decided to investigated whether there was an association between the number of passengers in a given taxi ride and whether or not the driver received a tip.  The proportion of people who tipped appeared to be between 44% and 58%.  We had hypothesized that the likelihood of tipping would increase with more passengers but we found that passengers who traveled alone were the most likely to tip (58%).  The proportion leaving a tip steadily decreased up until the four passenger group who were the most unlikely to tip (44%).  However, 5-passenger ride and 6-passenger ride groups were more likely to tip than all the groups except the one passenger-ride groups. 
+
+The fact that the average tip for each group was under 60% seemed odd to us.  Certainly, New Yorkers were not that stingy.   Then we realized that our data did not differentiate between passengers who paid with credit and those who paid in  cash.  If a passenger paid in cash, it was unlikely that the system would record her tip even if she did in give her driver a tip.  We decided to return to the original data, retain the payment type field, and restrict our analysis to those rides that were paid with credit. 
+
+
+```{r}
+taxi_data_credit <- full_join(x = trips_hw_1, y = fares_hw_1) 
+(nrow(taxi_data_credit))
+taxi_data_credit <- distinct(taxi_data_credit) #Remove Duplicate Rows
+(nrow(taxi_data_credit))
+taxi_data_credit<- taxi_data_credit %>% select(-store_and_fwd_flag, -vendor_id, -pickup_latitude, -pickup_longitude, -rate_code, -dropoff_latitude, -dropoff_longitude ) #Remove unneeded columns 
+taxi_data_credit<- na.omit(taxi_data_credit)  #Remove all cases with missing data. 
+(nrow(taxi_data_credit))
+
+#Remove any Duplicate Row
+taxi_data_credit <- distinct(taxi_data_credit, medallion, hack_license, dropoff_datetime,
+ .keep_all=T)
+(nrow(taxi_data_credit))
+
+#Remove any Duplicate Row
+taxi_data_credit <- distinct(taxi_data_credit, medallion, hack_license, pickup_datetime,
+ .keep_all=T)
+(nrow(taxi_data_credit))
+
+
+taxi_data_credit %>%
+        filter(payment_type == "CRD") %>%
+         mutate(tipped= as.factor(case_when(
+                          tip_amount == 0 ~ 0,
+                          tip_amount > 0 ~ 1)),
+             passenger_count = as.factor(passenger_count)) %>%
+          ggplot(aes(x=passenger_count)) +
+          geom_bar(aes(fill=tipped), position = "fill")
+
+
+
+taxi_data_credit %>%
+        filter(payment_type == "CRD") %>%
+         mutate(tipped= case_when(
+                          tip_amount == 0 ~ 0,
+                          tip_amount > 0 ~ 1)) %>%
+          group_by(passenger_count) %>%
+          summarize(prop_tipped = mean(tipped))
+
+
+
+```
+
+Based on this table and graph, it seems that New Yorkers are actually very likely to tip on average.  Across all passenger groups, the proportion of those who tipped was above 95%.  However, although less pronounced, there still is a trend where one-passenger groups are the most likely to tip and 3-passenger and 4-passenger groups are slightly less likely to tip. 
+
+Although based on the data, we cannot provide a causal explanation, we discussed several hypotheses to explain the data. One possible explanationis that people who ride by themselves in a taxi are more affluent on average and therefore have more dispensible income with which to tip. On the other hand, those groups of 5 to 6 passengers may have a higher likelihood of being families.  In fact, a 6-person ride must be a family with a child under the age of 7 provided that the data is correct and the taxi driver is complying with New York City law.  It is likely that most families traveling in New York City on a given day are tourists.  Tourists are likely to have more dispensible income and will consequently be more likely to tip.  On the other hand, those with less money may only be able to afford a cab if they split the fare.  These people may be more likely to travel in groups of 3 or 4.  These people may choose not to tip because they have less disposible income. 
